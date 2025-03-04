@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.example.countrylist"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.countrylist"
@@ -52,8 +52,8 @@ dependencies {
     implementation(libs.androidx.recyclerview)
 
     // Activity and Fragment
-    implementation("androidx.activity:activity-ktx:1.8.2")
-    implementation("androidx.fragment:fragment-ktx:1.6.2")
+    implementation(libs.androidx.activity.ktx.v1101)
+    implementation(libs.androidx.fragment.ktx.v186)
 
     // Lifecycle components
     implementation(libs.androidx.lifecycle.runtime.ktx)

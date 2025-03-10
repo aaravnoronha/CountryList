@@ -1,9 +1,10 @@
+// app/build.gradle.kts
 plugins {
     id("com.android.application")
-    kotlin("android")
-    kotlin("kapt")
-    id("com.google.dagger.hilt.android")
-    id("com.google.devtools.ksp")
+    id("kotlin-android")
+    id("kotlin-kapt")
+    id("dagger.hilt.android.plugin")
+    id("kotlinx-serialization")
 }
 
 android {
@@ -30,6 +31,10 @@ android {
         }
     }
 
+    buildFeatures {
+        viewBinding = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -38,61 +43,51 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
-
-    buildFeatures {
-        viewBinding = true
-    }
 }
 
 dependencies {
     // Core Android
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.constraintlayout)
-    implementation(libs.androidx.recyclerview)
-
-    // Activity and Fragment
-    implementation(libs.androidx.activity.ktx.v1101)
-    implementation(libs.androidx.fragment.ktx.v186)
-
-    // Lifecycle components
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.viewmodel.ktx)
-    implementation(libs.androidx.lifecycle.livedata.ktx)
+    implementation(libs.androidx.core.ktx.v1150)
+    implementation(libs.androidx.appcompat.v170)
+    implementation(libs.material.v1110)
+    implementation(libs.androidx.constraintlayout.v221)
 
     // Coroutines
-    implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.coroutines.android.v171)
+    implementation(libs.kotlinx.coroutines.core.v171)
 
-    // Dependency Injection - Hilt
+    // Lifecycle
+    implementation(libs.androidx.lifecycle.viewmodel.ktx.v287)
+    implementation(libs.androidx.lifecycle.runtime.ktx.v287)
+
+    // Hilt
     implementation(libs.hilt.android)
-    kapt(libs.hilt.compiler)
+    kapt(libs.dagger.hilt.compiler)
 
-    // Material Design
-    implementation(libs.androidx.material3.android)
-
-    // Networking
+    // Retrofit + Kotlin Serialization
     implementation(libs.retrofit)
-    implementation(libs.retrofit.moshi)
-    implementation(libs.okhttp)
+    implementation(libs.retrofit2.kotlinx.serialization.converter)
+    implementation(libs.kotlinx.serialization.json.v160)
     implementation(libs.okhttp.logging)
-
-    // Moshi
-    implementation(libs.moshi.kotlin)
-    ksp(libs.moshi.kotlin.codegen)
 
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
+    kapt("androidx.room:room-compiler:2.6.1")
+
+    // Activity/Fragment KTX
+    implementation(libs.androidx.activity.ktx)
+    implementation(libs.androidx.fragment.ktx)
 
     // Testing
     testImplementation(libs.junit)
-    testImplementation(libs.mockk)
-    testImplementation(libs.kotlinx.coroutines.test)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+    testImplementation(libs.mockito.core)
+    testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.kotlinx.coroutines.test.v171)
+    testImplementation(libs.turbine)
+    testImplementation(libs.androidx.core.testing)
 
-    implementation(libs.androidx.appcompat.v170)
-    implementation(libs.material)
+    // Android Testing
+    androidTestImplementation(libs.androidx.junit.v121)
+    androidTestImplementation(libs.androidx.espresso.core.v361)
 }

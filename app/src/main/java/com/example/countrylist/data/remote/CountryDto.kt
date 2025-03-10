@@ -1,12 +1,17 @@
+// data/remote/CountryDto.kt
 package com.example.countrylist.data.remote
 
-import com.squareup.moshi.Json
-import com.squareup.moshi.JsonClass
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
-@JsonClass(generateAdapter = true)
+@Serializable
 data class CountryDto(
-    @Json(name = "name") val name: String,
-    @Json(name = "region") val region: String,
-    @Json(name = "code") val code: String,
-    @Json(name = "capital") val capital: String
+    @SerialName("code")
+    val code: String,
+    @SerialName("name")
+    val name: String,
+    @SerialName("capital")
+    val capital: String,
+    @SerialName("region")
+    val region: String
 )

@@ -1,3 +1,4 @@
+// presentation/ui/main/MainActivity.kt
 package com.example.countrylist.presentation.ui.main
 
 import android.os.Bundle
@@ -5,13 +6,17 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.countrylist.databinding.ActivityMainBinding
 import com.example.countrylist.presentation.viewmodel.CountryViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -26,11 +31,10 @@ class MainActivity : AppCompatActivity() {
 
         setupUI()
         observeViewModel()
-        supportActionBar?.hide()
     }
 
     private fun setupUI() {
-        binding.recyclerView.apply {
+        binding.countriesList.apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = this@MainActivity.adapter
         }
@@ -38,15 +42,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun observeViewModel() {
         lifecycleScope.launch {
-            viewModel.state.collectLatest { state ->
-                binding.progressBar.isVisible = state.isLoading
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch(Dispatchers.IO) {
+                    viewModel.uiState.collectLatest { state ->
+                        withContext(Dispatchers.Main) {
+                            binding.loadingIndicator.isVisible = state.isLoading
 
-                state.error?.let { error ->
-                    Toast.makeText(this@MainActivity, error, Toast.LENGTH_LONG).show()
-                }
+                            state.error?.let { error ->
+                                Toast.makeText(this@MainActivity, error, Toast.LENGTH_LONG).show()
+                            }
 
-                state.countries?.let { countries ->
-                    adapter.submitList(countries)
+                            adapter.submitList(state.countries)
+                        }
+                    }
                 }
             }
         }

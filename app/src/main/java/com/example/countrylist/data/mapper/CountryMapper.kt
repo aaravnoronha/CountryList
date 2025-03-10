@@ -7,17 +7,31 @@ import com.example.countrylist.domain.model.Country
 import javax.inject.Inject
 
 class CountryMapper @Inject constructor() {
-    fun mapDtoToEntity(dto: CountryDto) = CountryEntity(
-        name = dto.name,
-        region = dto.region,
-        code = dto.code,
-        capital = dto.capital
-    )
+    fun fromEntity(entity: CountryEntity): Country {
+        return Country(
+            code = entity.code,
+            name = entity.name,
+            capital = entity.capital,
+            region = entity.region
+        )
+    }
 
-    fun mapEntityToDomain(entity: CountryEntity) = Country(
-        name = entity.name,
-        region = entity.region,
-        code = entity.code,
-        capital = entity.capital
-    )
+    fun fromDto(dto: CountryDto): Country {
+        return Country(
+            code = dto.code,
+            name = dto.name,
+            capital = dto.capital,
+            region = dto.region
+        )
+    }
+
+    fun toEntity(dto: CountryDto): CountryEntity {
+        return CountryEntity(
+            code = dto.code,
+            name = dto.name,
+            capital = dto.capital,
+            region = dto.region,
+            lastUpdated = System.currentTimeMillis()
+        )
+    }
 }

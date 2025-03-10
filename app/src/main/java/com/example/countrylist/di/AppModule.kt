@@ -5,16 +5,16 @@ import android.app.Application
 import androidx.room.Room
 import com.example.countrylist.data.local.CountryDatabase
 import com.example.countrylist.data.remote.CountryApi
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
-import retrofit2.converter.moshi.MoshiConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -24,34 +24,48 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideMoshi(): Moshi = Moshi.Builder()
-        .add(KotlinJsonAdapterFactory())
-        .build()
+    fun provideJson(): Json {
+        return Json {
+            ignoreUnknownKeys = true
+            coerceInputValues = true
+            isLenient = true
+            prettyPrint = true
+        }
+    }
 
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+
         return OkHttpClient.Builder()
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            })
+            .addInterceptor(loggingInterceptor)
+            .addInterceptor { chain ->
+                val original = chain.request()
+                val request = original.newBuilder()
+                    .header("Accept", "application/json")
+                    .method(original.method, original.body)
+                    .build()
+                chain.proceed(request)
+            }
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
             .build()
     }
 
     @Provides
     @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit {
+    fun provideCountryApi(okHttpClient: OkHttpClient, json: Json): CountryApi {
+        val contentType = "application/json".toMediaType()
         return Retrofit.Builder()
-            .baseUrl("https://gist.githubusercontent.com/")
+            .baseUrl(CountryApi.BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .addConverterFactory(json.asConverterFactory(contentType))
             .build()
-    }
-
-    @Provides
-    @Singleton
-    fun provideCountryApi(retrofit: Retrofit): CountryApi {
-        return retrofit.create(CountryApi::class.java)
+            .create(CountryApi::class.java)
     }
 
     @Provides
@@ -60,11 +74,7 @@ object AppModule {
         return Room.databaseBuilder(
             app,
             CountryDatabase::class.java,
-            "country_db"
+            CountryDatabase.DATABASE_NAME
         ).build()
     }
-
-    @Provides
-    @Singleton
-    fun provideCountryDao(database: CountryDatabase) = database.countryDao
 }

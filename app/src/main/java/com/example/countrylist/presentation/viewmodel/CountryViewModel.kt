@@ -25,7 +25,7 @@ class CountryViewModel @Inject constructor(
         getCountries()
     }
 
-    private fun getCountries() {
+    fun getCountries() {
         getCountriesUseCase().onEach { result ->
             when (result) {
                 is ResourceState.Loading -> {

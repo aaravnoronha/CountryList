@@ -1,4 +1,3 @@
-// app/build.gradle.kts
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -62,6 +61,7 @@ dependencies {
 
     // Hilt
     implementation(libs.hilt.android)
+    implementation(libs.mediation.test.suite)
     kapt(libs.dagger.hilt.compiler)
 
     // Retrofit + Kotlin Serialization
@@ -81,10 +81,13 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation(libs.kotlin.test)
     testImplementation(libs.mockito.core)
     testImplementation(libs.mockito.kotlin)
-    testImplementation(libs.kotlinx.coroutines.test.v171)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
+    testImplementation(libs.mockk)
+    testImplementation(libs.truth)
     testImplementation(libs.androidx.core.testing)
 
     // Android Testing

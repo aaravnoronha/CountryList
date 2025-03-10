@@ -1,4 +1,3 @@
-// data/repository/CountryRepositoryImpl.kt
 package com.example.countrylist.data.repository
 
 import com.example.countrylist.data.local.LocalDataSource
@@ -21,28 +20,14 @@ class CountryRepositoryImpl @Inject constructor(
 
     override fun getCountries(): Flow<ResourceState<List<Country>>> = flow {
         emit(ResourceState.Loading())
-
         try {
-            // First emit cached data
+            // Fetch data from local storage only
             val cachedCountries = localDataSource.getCountries()
-            emit(ResourceState.Success(cachedCountries.map { mapper.fromEntity(it) }))
 
-            // Check if we should update cache
-            if (localDataSource.shouldUpdateCache()) {
-                try {
-                    val remoteCountries = networkDataSource.getCountries()
-                    localDataSource.clearCountries()
-                    localDataSource.insertCountries(remoteCountries.map { mapper.toEntity(it) })
-                    emit(ResourceState.Success(remoteCountries.map { mapper.fromDto(it) }))
-                } catch (e: HttpException) {
-                    emit(ResourceState.Error(
-                        "Server error occurred: ${e.localizedMessage ?: "Unknown error"}"
-                    ))
-                } catch (e: IOException) {
-                    emit(ResourceState.Error(
-                        "Couldn't reach server. Check your internet connection."
-                    ))
-                }
+            if (cachedCountries.isNotEmpty()) {
+                emit(ResourceState.Success(cachedCountries.map { mapper.fromEntity(it) }))
+            } else {
+                emit(ResourceState.Error("No local data available. Please refresh."))
             }
         } catch (e: Exception) {
             emit(ResourceState.Error(
@@ -54,10 +39,13 @@ class CountryRepositoryImpl @Inject constructor(
     override suspend fun refreshCountries() {
         try {
             val remoteCountries = networkDataSource.getCountries()
+            // Update local storage
             localDataSource.clearCountries()
             localDataSource.insertCountries(remoteCountries.map { mapper.toEntity(it) })
-        } catch (e: Exception) {
-            throw e
+        } catch (e: HttpException) {
+            throw IOException("Server error occurred: ${e.localizedMessage ?: "Unknown error"}")
+        } catch (e: IOException) {
+            throw IOException("Couldn't reach server. Check your internet connection.")
         }
     }
 }

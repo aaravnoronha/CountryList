@@ -12,36 +12,67 @@ import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
 
+// data/repository/CountryRepositoryImpl.kt
 class CountryRepositoryImpl @Inject constructor(
     private val networkDataSource: NetworkDataSource,
     private val localDataSource: LocalDataSource,
     private val mapper: CountryMapper
 ) : CountryRepository {
 
-    override fun getCountries(): Flow<ResourceState<List<Country>>> = flow {
+    override fun getCountries(forceRefresh: Boolean): Flow<ResourceState<List<Country>>> = flow {
         emit(ResourceState.Loading)
         try {
-            // Try network first
-            val remoteCountries = networkDataSource.getCountries()
-            localDataSource.clearCountries()
-            localDataSource.insertCountries(remoteCountries.map { mapper.toEntity(it) })
-            emit(ResourceState.Success(remoteCountries.map { mapper.fromDto(it) }))
-        } catch (e: Exception) {
-            // If network fails, try cache
+            if (forceRefresh) {
+                try {
+                    val remoteCountries = networkDataSource.getCountries()
+                    val domainModels = remoteCountries.map { mapper.fromDto(it) }
+
+                    localDataSource.clearCountries()
+                    localDataSource.insertCountries(domainModels.map { mapper.toEntity(it) })
+
+                    emit(ResourceState.Success(domainModels))
+                    return@flow
+                } catch (e: Exception) {
+                    // Network failed, fall through to cache
+                }
+            }
+
+            // Get from cache
             val cachedCountries = localDataSource.getCountries()
             if (cachedCountries.isNotEmpty()) {
                 emit(ResourceState.Success(cachedCountries.map { mapper.fromEntity(it) }))
             } else {
-                emit(ResourceState.Error("No local data available"))
+                // If cache is empty and we haven't tried network yet, try network
+                if (!forceRefresh) {
+                    try {
+                        val remoteCountries = networkDataSource.getCountries()
+                        val domainModels = remoteCountries.map { mapper.fromDto(it) }
+
+                        localDataSource.clearCountries()
+                        localDataSource.insertCountries(domainModels.map { mapper.toEntity(it) })
+
+                        emit(ResourceState.Success(domainModels))
+                    } catch (e: Exception) {
+                        emit(ResourceState.Error("No data available"))
+                    }
+                } else {
+                    emit(ResourceState.Error("No data available"))
+                }
             }
+        } catch (e: Exception) {
+            emit(ResourceState.Error(
+                "An unexpected error occurred: ${e.localizedMessage ?: "Unknown error"}"
+            ))
         }
     }
 
     override suspend fun refreshCountries() {
         try {
             val remoteCountries = networkDataSource.getCountries()
+            val domainModels = remoteCountries.map { mapper.fromDto(it) }
+
             localDataSource.clearCountries()
-            localDataSource.insertCountries(remoteCountries.map { mapper.toEntity(it) })
+            localDataSource.insertCountries(domainModels.map { mapper.toEntity(it) })
         } catch (e: HttpException) {
             throw IOException("Server error occurred: ${e.localizedMessage ?: "Unknown error"}")
         } catch (e: IOException) {

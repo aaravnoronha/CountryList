@@ -34,7 +34,40 @@ class CountryRepositoryImplTest {
     }
 
     @Test
-    fun `getCountries returns cached data when available`() = runTest {
+    fun `getCountries with forceRefresh true fetches from network`() = runTest {
+        // Given
+        val dto = CountryDto("US", "United States", "Washington", "Americas")
+        val country = Country("US", "United States", "Washington", "Americas")
+        val entity = CountryEntity("US", "United States", "Washington", "Americas", System.currentTimeMillis())
+
+        coEvery { networkDataSource.getCountries() } returns listOf(dto)
+        every { mapper.fromDto(dto) } returns country
+        every { mapper.toEntity(country) } returns entity
+        coEvery { localDataSource.clearCountries() } returns Unit
+        coEvery { localDataSource.insertCountries(any()) } returns Unit
+
+        // When
+        val result = repository.getCountries(forceRefresh = true)
+
+        // Then
+        result.collect { state ->
+            when (state) {
+                is ResourceState.Success -> {
+                    assertThat(state.data).containsExactly(country)
+                }
+                else -> assertThat(state).isInstanceOf(ResourceState.Loading::class.java)
+            }
+        }
+
+        coVerify {
+            networkDataSource.getCountries()
+            localDataSource.clearCountries()
+            localDataSource.insertCountries(any())
+        }
+    }
+
+    @Test
+    fun `getCountries with forceRefresh false returns cached data when available`() = runTest {
         // Given
         val entity = CountryEntity("US", "United States", "Washington", "Americas", System.currentTimeMillis())
         val country = Country("US", "United States", "Washington", "Americas")
@@ -42,7 +75,37 @@ class CountryRepositoryImplTest {
         every { mapper.fromEntity(entity) } returns country
 
         // When
-        val result = repository.getCountries()
+        val result = repository.getCountries(forceRefresh = false)
+
+        // Then
+        result.collect { state ->
+            when (state) {
+                is ResourceState.Success -> {
+                    assertThat(state.data).containsExactly(country)
+                }
+                else -> assertThat(state).isInstanceOf(ResourceState.Loading::class.java)
+            }
+        }
+
+        coVerify(exactly = 0) { networkDataSource.getCountries() }
+    }
+
+    @Test
+    fun `getCountries with empty cache falls back to network`() = runTest {
+        // Given
+        val dto = CountryDto("US", "United States", "Washington", "Americas")
+        val country = Country("US", "United States", "Washington", "Americas")
+        val entity = CountryEntity("US", "United States", "Washington", "Americas", System.currentTimeMillis())
+
+        coEvery { localDataSource.getCountries() } returns emptyList()
+        coEvery { networkDataSource.getCountries() } returns listOf(dto)
+        every { mapper.fromDto(dto) } returns country
+        every { mapper.toEntity(country) } returns entity
+        coEvery { localDataSource.clearCountries() } returns Unit
+        coEvery { localDataSource.insertCountries(any()) } returns Unit
+
+        // When
+        val result = repository.getCountries(forceRefresh = false)
 
         // Then
         result.collect { state ->
@@ -56,18 +119,19 @@ class CountryRepositoryImplTest {
     }
 
     @Test
-    fun `getCountries returns error when cache is empty`() = runTest {
+    fun `getCountries returns error when both network and cache fail`() = runTest {
         // Given
         coEvery { localDataSource.getCountries() } returns emptyList()
+        coEvery { networkDataSource.getCountries() } throws IOException()
 
         // When
-        val result = repository.getCountries()
+        val result = repository.getCountries(forceRefresh = false)
 
         // Then
         result.collect { state ->
             when (state) {
                 is ResourceState.Error -> {
-                    assertThat(state.error).contains("No local data available")
+                    assertThat(state.error).contains("No data available")
                 }
                 else -> assertThat(state).isInstanceOf(ResourceState.Loading::class.java)
             }
@@ -78,9 +142,12 @@ class CountryRepositoryImplTest {
     fun `refreshCountries updates cache with network data`() = runTest {
         // Given
         val dto = CountryDto("US", "United States", "Washington", "Americas")
+        val country = Country("US", "United States", "Washington", "Americas")
         val entity = CountryEntity("US", "United States", "Washington", "Americas", System.currentTimeMillis())
+
         coEvery { networkDataSource.getCountries() } returns listOf(dto)
-        every { mapper.toEntity(dto) } returns entity
+        every { mapper.fromDto(dto) } returns country
+        every { mapper.toEntity(country) } returns entity
         coEvery { localDataSource.clearCountries() } returns Unit
         coEvery { localDataSource.insertCountries(any()) } returns Unit
 
@@ -89,8 +156,9 @@ class CountryRepositoryImplTest {
 
         // Then
         coVerify {
+            networkDataSource.getCountries()
             localDataSource.clearCountries()
-            localDataSource.insertCountries(listOf(entity))
+            localDataSource.insertCountries(any())
         }
     }
 

@@ -1,4 +1,3 @@
-// data/mapper/CountryMapper.kt
 package com.example.countrylist.data.mapper
 
 import com.example.countrylist.data.local.CountryEntity
@@ -25,12 +24,12 @@ class CountryMapper @Inject constructor() {
         )
     }
 
-    fun toEntity(dto: CountryDto): CountryEntity {
+    fun toEntity(domain: Country): CountryEntity {
         return CountryEntity(
-            code = dto.code,
-            name = dto.name,
-            capital = dto.capital,
-            region = dto.region,
+            code = domain.code,
+            name = domain.name,
+            capital = domain.capital,
+            region = domain.region,
             lastUpdated = System.currentTimeMillis()
         )
     }

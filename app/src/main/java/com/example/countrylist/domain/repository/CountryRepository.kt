@@ -6,6 +6,6 @@ import com.example.countrylist.util.ResourceState
 import kotlinx.coroutines.flow.Flow
 
 interface CountryRepository {
-    fun getCountries(): Flow<ResourceState<List<Country>>>
+    fun getCountries(forceRefresh: Boolean = false): Flow<ResourceState<List<Country>>>
     suspend fun refreshCountries()
 }

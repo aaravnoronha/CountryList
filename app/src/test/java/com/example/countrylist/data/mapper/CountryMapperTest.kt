@@ -2,6 +2,7 @@ package com.example.countrylist.data.mapper
 
 import com.example.countrylist.data.local.CountryEntity
 import com.example.countrylist.data.remote.CountryDto
+import com.example.countrylist.domain.model.Country
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
 import org.junit.Test
@@ -56,9 +57,9 @@ class CountryMapperTest {
     }
 
     @Test
-    fun `toEntity maps CountryDto to CountryEntity correctly`() {
+    fun `toEntity maps Country to CountryEntity correctly`() {
         // Given
-        val dto = CountryDto(
+        val domain = Country(
             code = "US",
             name = "United States",
             capital = "Washington",
@@ -67,13 +68,13 @@ class CountryMapperTest {
         val currentTime = System.currentTimeMillis()
 
         // When
-        val result = mapper.toEntity(dto)
+        val result = mapper.toEntity(domain)
 
         // Then
-        assertThat(result.code).isEqualTo(dto.code)
-        assertThat(result.name).isEqualTo(dto.name)
-        assertThat(result.capital).isEqualTo(dto.capital)
-        assertThat(result.region).isEqualTo(dto.region)
+        assertThat(result.code).isEqualTo(domain.code)
+        assertThat(result.name).isEqualTo(domain.name)
+        assertThat(result.capital).isEqualTo(domain.capital)
+        assertThat(result.region).isEqualTo(domain.region)
         assertThat(result.lastUpdated).isAtLeast(currentTime)
     }
 }

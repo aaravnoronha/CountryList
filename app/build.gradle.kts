@@ -61,7 +61,6 @@ dependencies {
 
     // Hilt
     implementation(libs.hilt.android)
-    implementation(libs.mediation.test.suite)
     kapt(libs.dagger.hilt.compiler)
 
     // Retrofit + Kotlin Serialization
@@ -84,9 +83,12 @@ dependencies {
     testImplementation(libs.kotlin.test)
     testImplementation(libs.mockito.core)
     testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.mockito.inline)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
     testImplementation(libs.mockk)
+    testImplementation(libs.mockk.android)
+    testImplementation(libs.mockk.agent)
     testImplementation(libs.truth)
     testImplementation(libs.androidx.core.testing)
 

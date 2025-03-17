@@ -4,31 +4,42 @@ package com.example.countrylist.presentation.viewmodel
 import app.cash.turbine.test
 import com.example.countrylist.domain.model.Country
 import com.example.countrylist.domain.usecase.GetCountriesUseCase
+import com.example.countrylist.util.MainDispatcherRule
+import com.example.countrylist.util.MockLogRule
 import com.example.countrylist.util.ResourceState
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CountryViewModelTest {
-    private val testDispatcher = StandardTestDispatcher()
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
+
+    @get:Rule
+    val mockLogRule = MockLogRule()
+
     private lateinit var getCountriesUseCase: GetCountriesUseCase
     private lateinit var viewModel: CountryViewModel
+    private val testDispatcher = StandardTestDispatcher()
 
     @Before
     fun setup() {
-        Dispatchers.setMain(testDispatcher)
         getCountriesUseCase = mockk()
+        Dispatchers.setMain(testDispatcher)
     }
 
     @After
@@ -39,15 +50,16 @@ class CountryViewModelTest {
     @Test
     fun `initial state is loading`() = runTest {
         // Given
-        coEvery { getCountriesUseCase() } returns flowOf(ResourceState.Loading())
+        coEvery { getCountriesUseCase.invokeGetCountriesUseCase() } returns flow {
+            emit(ResourceState.Loading)
+        }
 
         // When
         viewModel = CountryViewModel(getCountriesUseCase)
+        advanceUntilIdle()
 
         // Then
-        assertThat(viewModel.uiState.value).isEqualTo(
-            CountryState(isLoading = true, countries = emptyList(), error = null)
-        )
+        assertThat(viewModel.uiState.value).isEqualTo(ResourceState.Loading)
     }
 
     @Test
@@ -60,28 +72,18 @@ class CountryViewModelTest {
             region = "Test Region"
         )
 
-        coEvery { getCountriesUseCase() } returns flowOf(
-            ResourceState.Loading(),
-            ResourceState.Success(listOf(mockCountry))
-        )
+        coEvery { getCountriesUseCase.invokeGetCountriesUseCase() } returns flow {
+            emit(ResourceState.Loading)
+            emit(ResourceState.Success(listOf(mockCountry)))
+        }
 
         // When
         viewModel = CountryViewModel(getCountriesUseCase)
 
         // Then
         viewModel.uiState.test {
-            // Initial loading state
-            val loadingState = awaitItem()
-            assertThat(loadingState).isEqualTo(
-                CountryState(isLoading = true, countries = emptyList(), error = null)
-            )
-
-            // Success state
-            val successState = awaitItem()
-            assertThat(successState).isEqualTo(
-                CountryState(isLoading = false, countries = listOf(mockCountry), error = null)
-            )
-
+            assertThat(awaitItem()).isEqualTo(ResourceState.Loading)
+            assertThat(awaitItem()).isEqualTo(ResourceState.Success(listOf(mockCountry)))
             cancelAndConsumeRemainingEvents()
         }
     }
@@ -90,28 +92,20 @@ class CountryViewModelTest {
     fun `getCountries updates state with loading and then error`() = runTest {
         // Given
         val errorMessage = "Network error"
-        coEvery { getCountriesUseCase() } returns flowOf(
-            ResourceState.Loading(),
-            ResourceState.Error(errorMessage)
-        )
+        coEvery { getCountriesUseCase.invokeGetCountriesUseCase() } returns flow {
+            emit(ResourceState.Loading)
+            throw Exception(errorMessage)
+        }
 
         // When
         viewModel = CountryViewModel(getCountriesUseCase)
 
         // Then
         viewModel.uiState.test {
-            // Initial loading state
-            val loadingState = awaitItem()
-            assertThat(loadingState).isEqualTo(
-                CountryState(isLoading = true, countries = emptyList(), error = null)
-            )
-
-            // Error state
+            assertThat(awaitItem()).isEqualTo(ResourceState.Loading)
             val errorState = awaitItem()
-            assertThat(errorState).isEqualTo(
-                CountryState(isLoading = false, countries = emptyList(), error = errorMessage)
-            )
-
+            assertThat(errorState).isInstanceOf(ResourceState.Error::class.java)
+            assertThat((errorState as ResourceState.Error).error).contains(errorMessage)
             cancelAndConsumeRemainingEvents()
         }
     }

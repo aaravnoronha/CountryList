@@ -19,27 +19,27 @@ class CountryRepositoryImpl @Inject constructor(
 ) : CountryRepository {
 
     override fun getCountries(): Flow<ResourceState<List<Country>>> = flow {
-        emit(ResourceState.Loading())
+        emit(ResourceState.Loading)
         try {
-            // Fetch data from local storage only
+            // Try network first
+            val remoteCountries = networkDataSource.getCountries()
+            localDataSource.clearCountries()
+            localDataSource.insertCountries(remoteCountries.map { mapper.toEntity(it) })
+            emit(ResourceState.Success(remoteCountries.map { mapper.fromDto(it) }))
+        } catch (e: Exception) {
+            // If network fails, try cache
             val cachedCountries = localDataSource.getCountries()
-
             if (cachedCountries.isNotEmpty()) {
                 emit(ResourceState.Success(cachedCountries.map { mapper.fromEntity(it) }))
             } else {
-                emit(ResourceState.Error("No local data available. Please refresh."))
+                emit(ResourceState.Error("No local data available"))
             }
-        } catch (e: Exception) {
-            emit(ResourceState.Error(
-                "An unexpected error occurred: ${e.localizedMessage ?: "Unknown error"}"
-            ))
         }
     }
 
     override suspend fun refreshCountries() {
         try {
             val remoteCountries = networkDataSource.getCountries()
-            // Update local storage
             localDataSource.clearCountries()
             localDataSource.insertCountries(remoteCountries.map { mapper.toEntity(it) })
         } catch (e: HttpException) {

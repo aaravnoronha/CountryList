@@ -1,8 +1,8 @@
 // util/ResourceState.kt
 package com.example.countrylist.util
 
-sealed class ResourceState<T> {
-    class Loading<T> : ResourceState<T>()
+sealed class ResourceState<out T> {
+    data object Loading : ResourceState<Nothing>()
     data class Success<T>(val data: T) : ResourceState<T>()
-    data class Error<T>(val error: String) : ResourceState<T>()
+    data class Error(val error: String) : ResourceState<Nothing>()
 }

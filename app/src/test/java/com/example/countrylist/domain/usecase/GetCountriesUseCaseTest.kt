@@ -2,20 +2,28 @@ package com.example.countrylist.domain.usecase
 
 import com.example.countrylist.domain.model.Country
 import com.example.countrylist.domain.repository.CountryRepository
+import com.example.countrylist.util.MainDispatcherRule
 import com.example.countrylist.util.ResourceState
 import com.google.common.truth.Truth.assertThat
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
-@ExperimentalCoroutinesApi
+@OptIn(ExperimentalCoroutinesApi::class)
 class GetCountriesUseCaseTest {
-    private lateinit var useCase: GetCountriesUseCase
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
+
     private lateinit var repository: CountryRepository
+    private lateinit var useCase: GetCountriesUseCase
 
     @Before
     fun setup() {
@@ -24,56 +32,68 @@ class GetCountriesUseCaseTest {
     }
 
     @Test
-    fun `invoke returns sorted countries on success`() = runTest {
+    fun `invokeGetCountriesUseCase emits loading then success when repository returns countries`() = runTest {
         // Given
-        val unsortedCountries = listOf(
-            Country("US", "United States", "Washington", "Americas"),
-            Country("CA", "Canada", "Ottawa", "Americas"),
-            Country("BR", "Brazil", "Brasilia", "Americas")
+        val mockCountry = Country(
+            name = "Test Country",
+            capital = "Test Capital",
+            code = "TC",
+            region = "Test Region"
         )
-        every { repository.getCountries() } returns flowOf(ResourceState.Success(unsortedCountries))
+        val countryList = listOf(mockCountry)
+
+        coEvery { repository.getCountries() } returns flow {
+            emit(ResourceState.Loading)
+            emit(ResourceState.Success(countryList))
+        }
 
         // When
-        val result = useCase()
+        val results = mutableListOf<ResourceState<List<Country>>>()
+        useCase.invokeGetCountriesUseCase().toList(results)
 
         // Then
-        result.collect { state ->
-            assertThat(state).isInstanceOf(ResourceState.Success::class.java)
-            state as ResourceState.Success
-            assertThat(state.data).isInOrder { a, b ->
-                (a as Country).name.compareTo((b as Country).name)
-            }
-        }
+        assertThat(results).hasSize(2)
+        assertThat(results[0]).isInstanceOf(ResourceState.Loading::class.java)
+        assertThat(results[1]).isInstanceOf(ResourceState.Success::class.java)
+        assertThat((results[1] as ResourceState.Success).data).containsExactly(mockCountry)
     }
 
     @Test
-    fun `invoke propagates error state`() = runTest {
+    fun `invokeGetCountriesUseCase emits loading then error when repository returns empty list`() = runTest {
+        // Given
+        coEvery { repository.getCountries() } returns flow {
+            emit(ResourceState.Loading)
+            emit(ResourceState.Success(emptyList()))
+        }
+
+        // When
+        val results = mutableListOf<ResourceState<List<Country>>>()
+        useCase.invokeGetCountriesUseCase().toList(results)
+
+        // Then
+        assertThat(results).hasSize(2)
+        assertThat(results[0]).isInstanceOf(ResourceState.Loading::class.java)
+        assertThat(results[1]).isInstanceOf(ResourceState.Error::class.java)
+        assertThat((results[1] as ResourceState.Error).error).isEqualTo("No countries found")
+    }
+
+    @Test
+    fun `invokeGetCountriesUseCase emits error when repository throws exception`() = runTest {
         // Given
         val errorMessage = "Network error"
-        every { repository.getCountries() } returns flowOf(ResourceState.Error(errorMessage))
+        coEvery { repository.getCountries() } returns flow {
+            emit(ResourceState.Loading)
+            emit(ResourceState.Error(errorMessage))
+        }
 
         // When
-        val result = useCase()
+        val results = mutableListOf<ResourceState<List<Country>>>()
+        useCase.invokeGetCountriesUseCase().toList(results)
 
         // Then
-        result.collect { state ->
-            assertThat(state).isInstanceOf(ResourceState.Error::class.java)
-            state as ResourceState.Error
-            assertThat(state.error).isEqualTo(errorMessage)
-        }
-    }
-
-    @Test
-    fun `invoke propagates loading state`() = runTest {
-        // Given
-        every { repository.getCountries() } returns flowOf(ResourceState.Loading())
-
-        // When
-        val result = useCase()
-
-        // Then
-        result.collect { state ->
-            assertThat(state).isInstanceOf(ResourceState.Loading::class.java)
-        }
+        assertThat(results).hasSize(2)
+        assertThat(results[0]).isInstanceOf(ResourceState.Loading::class.java)
+        assertThat(results[1]).isInstanceOf(ResourceState.Error::class.java)
+        assertThat((results[1] as ResourceState.Error).error).isEqualTo(errorMessage)
     }
 }

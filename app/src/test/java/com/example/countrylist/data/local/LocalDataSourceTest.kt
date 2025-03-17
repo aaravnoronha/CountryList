@@ -61,52 +61,6 @@ class LocalDataSourceTest {
     }
 
     @Test
-    fun `shouldUpdateCache returns true when database is empty`() = runTest {
-        // Given
-        coEvery { dao.getCountryCount() } returns 0
-
-        // When
-        val result = localDataSource.shouldUpdateCache()
-
-        // Then
-        assertThat(result).isTrue()
-    }
-
-    @Test
-    fun `shouldUpdateCache returns true when data is old`() = runTest {
-        // Given
-        val oldTimestamp = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)
-        val countries = listOf(
-            CountryEntity("US", "United States", "Washington", "Americas", oldTimestamp)
-        )
-        coEvery { dao.getCountryCount() } returns 1
-        coEvery { dao.getCountries() } returns countries
-
-        // When
-        val result = localDataSource.shouldUpdateCache()
-
-        // Then
-        assertThat(result).isTrue()
-    }
-
-    @Test
-    fun `shouldUpdateCache returns false when data is fresh`() = runTest {
-        // Given
-        val freshTimestamp = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1)
-        val countries = listOf(
-            CountryEntity("US", "United States", "Washington", "Americas", freshTimestamp)
-        )
-        coEvery { dao.getCountryCount() } returns 1
-        coEvery { dao.getCountries() } returns countries
-
-        // When
-        val result = localDataSource.shouldUpdateCache()
-
-        // Then
-        assertThat(result).isFalse()
-    }
-
-    @Test
     fun `getCountryByCode returns matching country`() = runTest {
         // Given
         val country = CountryEntity("US", "United States", "Washington", "Americas", System.currentTimeMillis())

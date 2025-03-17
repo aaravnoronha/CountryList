@@ -12,6 +12,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.countrylist.databinding.ActivityMainBinding
 import com.example.countrylist.presentation.viewmodel.CountryViewModel
+import com.example.countrylist.util.ResourceState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -46,13 +47,18 @@ class MainActivity : AppCompatActivity() {
                 launch(Dispatchers.IO) {
                     viewModel.uiState.collectLatest { state ->
                         withContext(Dispatchers.Main) {
-                            binding.loadingIndicator.isVisible = state.isLoading
-
-                            state.error?.let { error ->
-                                Toast.makeText(this@MainActivity, error, Toast.LENGTH_LONG).show()
+                            binding.loadingIndicator.isVisible = false
+                            when (state) {
+                                is ResourceState.Loading -> {
+                                    binding.loadingIndicator.isVisible = true
+                                }
+                                is ResourceState.Success -> {
+                                    adapter.submitList(state.data)
+                                }
+                                is ResourceState.Error -> {
+                                    Toast.makeText(this@MainActivity, state.error, Toast.LENGTH_LONG).show()
+                                }
                             }
-
-                            adapter.submitList(state.countries)
                         }
                     }
                 }
